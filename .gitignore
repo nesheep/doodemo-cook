@@ -1,2 +1,3 @@
 # Executables and test outputs
 backend/api/cmd/lambda/lambda
+backend/api/cmd/standalone/standalone
