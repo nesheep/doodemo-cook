@@ -18,62 +18,37 @@ func NewRecipe(db *mongo.Database) *Recipe {
 	return &Recipe{db: db}
 }
 
-type recipeBSON struct {
-	ID    string `bson:"_id"`
-	Title string `bson:"title"`
-	URL   string `bson:"URL"`
-}
-
-type insertRecipeBSON struct {
-	Title string `bson:"title"`
-	URL   string `bson:"URL"`
-}
-
-func (s *Recipe) Find(ctx context.Context) ([]entity.Recipe, error) {
+func (s *Recipe) Find(ctx context.Context) (entity.Recipes, error) {
 	coll := s.db.Collection(name)
 
 	cur, err := coll.Find(ctx, bson.D{})
 	if err != nil {
-		return nil, err
+		return entity.Recipes{}, err
 	}
 
-	recipes := []entity.Recipe{}
-
+	data := []entity.Recipe{}
 	for cur.Next(ctx) {
-		var data recipeBSON
-		cur.Decode(&data)
-		recipes = append(recipes, entity.Recipe{
-			ID:    data.ID,
-			Title: data.Title,
-			URL:   data.URL,
-		})
+		var recipe entity.Recipe
+		cur.Decode(&recipe)
+		data = append(data, recipe)
 	}
 
-	return recipes, nil
+	return entity.Recipes{Data: data, Total: len(data)}, nil
 }
 
 func (s *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error) {
 	coll := s.db.Collection(name)
 
-	insertDoc := insertRecipeBSON{
-		Title: recipe.Title,
-		URL:   recipe.URL,
-	}
-
-	result, err := coll.InsertOne(ctx, insertDoc)
+	result, err := coll.InsertOne(ctx, recipe)
 	if err != nil {
 		return entity.Recipe{}, err
 	}
 
 	id := result.InsertedID
-	var insertedDoc recipeBSON
-	if err := coll.FindOne(ctx, bson.M{"_id": id}).Decode(&insertedDoc); err != nil {
+	var newRecipe entity.Recipe
+	if err := coll.FindOne(ctx, bson.M{"_id": id}).Decode(&newRecipe); err != nil {
 		return entity.Recipe{}, err
 	}
 
-	return entity.Recipe{
-		ID:    insertedDoc.ID,
-		Title: insertedDoc.Title,
-		URL:   insertedDoc.URL,
-	}, nil
+	return newRecipe, nil
 }

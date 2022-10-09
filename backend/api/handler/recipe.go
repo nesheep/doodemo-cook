@@ -10,7 +10,7 @@ import (
 )
 
 type recipeStore interface {
-	Find(ctx context.Context) ([]entity.Recipe, error)
+	Find(ctx context.Context) (entity.Recipes, error)
 	InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error)
 }
 
@@ -25,16 +25,11 @@ func NewRecipe(store recipeStore) *Recipe {
 func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	rs, err := h.store.Find(ctx)
+	recipes, err := h.store.Find(ctx)
 	if err != nil {
 		response.JSON(ctx, w, response.ErrorResponse{Message: "internal server error"}, http.StatusInternalServerError)
 		log.Panicln(err)
 		return
-	}
-
-	recipes := entity.Recipes{
-		Data:  rs,
-		Total: len(rs),
 	}
 
 	response.JSON(ctx, w, recipes, http.StatusOK)
