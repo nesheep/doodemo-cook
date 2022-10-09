@@ -1,0 +1,4 @@
+api/cmd/lambda/lambda
+api/cmd/standalone/standalone
+
+api/cmd/standalone/.env
