@@ -8,12 +8,7 @@ import (
 	"net/http"
 )
 
-type ErrorResponse struct {
-	Message string   `json:"message"`
-	Details []string `json:"details,omitempty"`
-}
-
-func JSON(ctx context.Context, w http.ResponseWriter, body any, status int) {
+func JSON(ctx context.Context, w http.ResponseWriter, body any, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	bodyBytes, err := json.Marshal(body)
@@ -28,7 +23,7 @@ func JSON(ctx context.Context, w http.ResponseWriter, body any, status int) {
 		return
 	}
 
-	w.WriteHeader(status)
+	w.WriteHeader(code)
 	if _, err := fmt.Fprintf(w, "%s", bodyBytes); err != nil {
 		log.Printf("write response error: %v", err)
 	}
