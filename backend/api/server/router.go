@@ -20,7 +20,10 @@ func NewRouter(db *mongo.Database) http.Handler {
 		s := store.NewRecipe(db)
 		h := handler.NewRecipe(s)
 		r.Get("/", h.Find)
+		r.Get("/{id}", h.FindOne)
 		r.Post("/", h.InsertOne)
+		r.Put("/{id}", h.UpdateOne)
+		r.Delete("/{id}", h.DeleteOne)
 	})
 
 	return r

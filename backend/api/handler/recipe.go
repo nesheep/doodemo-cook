@@ -7,11 +7,16 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/go-chi/chi/v5"
 )
 
 type recipeStore interface {
 	Find(ctx context.Context) (entity.Recipes, error)
+	FindOne(ctx context.Context, id string) (entity.Recipe, error)
 	InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error)
+	UpdateOne(ctx context.Context, id string, recipe entity.Recipe) (entity.Recipe, error)
+	DeleteOne(ctx context.Context, id string) (string, error)
 }
 
 type Recipe struct {
@@ -28,11 +33,26 @@ func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 	recipes, err := h.store.Find(ctx)
 	if err != nil {
 		response.JSON(ctx, w, response.ErrorResponse{Message: "internal server error"}, http.StatusInternalServerError)
-		log.Panicln(err)
+		log.Println(err)
 		return
 	}
 
 	response.JSON(ctx, w, recipes, http.StatusOK)
+}
+
+func (h *Recipe) FindOne(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id := chi.URLParam(r, "id")
+
+	recipe, err := h.store.FindOne(ctx, id)
+	if err != nil {
+		response.JSON(ctx, w, response.ErrorResponse{Message: "internal server error"}, http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
+
+	response.JSON(ctx, w, recipe, http.StatusOK)
 }
 
 func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
@@ -41,16 +61,57 @@ func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
 	var recipe entity.Recipe
 	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
 		response.JSON(ctx, w, response.ErrorResponse{Message: "bad request"}, http.StatusBadRequest)
-		log.Panicln(err)
+		log.Println(err)
 		return
 	}
 
 	recipe, err := h.store.InsertOne(ctx, recipe)
 	if err != nil {
 		response.JSON(ctx, w, response.ErrorResponse{Message: "internal server error"}, http.StatusInternalServerError)
-		log.Panicln(err)
+		log.Println(err)
 		return
 	}
 
 	response.JSON(ctx, w, recipe, http.StatusCreated)
+}
+
+func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id := chi.URLParam(r, "id")
+
+	var recipe entity.Recipe
+	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
+		response.JSON(ctx, w, response.ErrorResponse{Message: "bad request"}, http.StatusBadRequest)
+		log.Println(err)
+		return
+	}
+
+	recipe, err := h.store.UpdateOne(ctx, id, recipe)
+	if err != nil {
+		response.JSON(ctx, w, response.ErrorResponse{Message: "internal server error"}, http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
+
+	response.JSON(ctx, w, recipe, http.StatusOK)
+}
+
+func (h *Recipe) DeleteOne(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id := chi.URLParam(r, "id")
+
+	deletedId, err := h.store.DeleteOne(ctx, id)
+	if err != nil {
+		response.JSON(ctx, w, response.ErrorResponse{Message: "internal server error"}, http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
+
+	b := struct {
+		DeletedId string `json:"deletedId"`
+	}{DeletedId: deletedId}
+
+	response.JSON(ctx, w, b, http.StatusOK)
 }
