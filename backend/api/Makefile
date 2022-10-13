@@ -1,6 +1,6 @@
-.PHONY: build-standalone build-lambda zip
+.PHONY: build build-lambda zip
 
-build-standalone:
+build:
 	cd cmd/standalone && go build
 
 build-lambda:
