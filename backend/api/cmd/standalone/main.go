@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -23,12 +22,7 @@ func run(ctx context.Context) error {
 		log.Println("no .env file found")
 	}
 
-	uri := os.Getenv("MONGODB_URI")
-	if uri == "" {
-		log.Fatal("you must set your 'MONGODB_URI' environmental variable")
-	}
-
-	db, disconnect, err := database.New(ctx, uri)
+	db, disconnect, err := database.New(ctx)
 	if err != nil {
 		log.Fatalf("failed to connect to db: %v", err)
 	}

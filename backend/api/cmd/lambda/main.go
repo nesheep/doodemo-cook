@@ -5,19 +5,13 @@ import (
 	"doodemo-cook/api/database"
 	"doodemo-cook/api/server"
 	"log"
-	"os"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/awslabs/aws-lambda-go-api-proxy/httpadapter"
 )
 
 func main() {
-	uri := os.Getenv("MONGODB_URI")
-	if uri == "" {
-		log.Fatal("you must set your 'MONGODB_URI' environmental variable")
-	}
-
-	db, disconnect, err := database.New(context.Background(), uri)
+	db, disconnect, err := database.New(context.Background())
 	if err != nil {
 		log.Fatalf("failed to connect to db: %v", err)
 	}
