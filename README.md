@@ -1,3 +1,5 @@
-# どーでもクック
+# Doodemo Cook
 
-「レンジのみ」「包丁不要」などのどーでもタグとともにレシピを保存・検索したい。
+- AWS Lambda
+- MongoDB Atlas
+- Auth0
