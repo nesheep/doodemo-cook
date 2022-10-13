@@ -30,5 +30,16 @@ func NewRouter(db *mongo.Database) http.Handler {
 		r.Delete("/{id}", h.DeleteOne)
 	})
 
+	r.Route("/tags", func(r chi.Router) {
+		s := store.NewTag(db)
+		h := handler.NewTag(s)
+		r.Use(authMiddleware)
+		r.Get("/", h.Find)
+		r.Get("/{id}", h.FindOne)
+		r.Post("/", h.InsertOne)
+		r.Put("/{id}", h.UpdateOne)
+		r.Delete("/{id}", h.DeleteOne)
+	})
+
 	return r
 }
