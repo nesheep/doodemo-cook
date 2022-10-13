@@ -33,7 +33,7 @@ func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 
 	recipes, err := h.store.Find(ctx)
 	if err != nil {
-		response.FromStatusCode(ctx, w, http.StatusInternalServerError, "")
+		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
@@ -48,12 +48,12 @@ func (h *Recipe) FindOne(w http.ResponseWriter, r *http.Request) {
 
 	recipe, err := h.store.FindOne(ctx, id)
 	if err == mongo.ErrNoDocuments {
-		response.FromStatusCode(ctx, w, http.StatusNotFound, "")
+		response.FromStatusCode(ctx, w, http.StatusNotFound)
 		log.Println(err)
 		return
 	}
 	if err != nil {
-		response.FromStatusCode(ctx, w, http.StatusInternalServerError, "")
+		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
@@ -66,14 +66,14 @@ func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
 
 	var recipe entity.Recipe
 	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
-		response.FromStatusCode(ctx, w, http.StatusBadRequest, "")
+		response.FromStatusCode(ctx, w, http.StatusBadRequest)
 		log.Println(err)
 		return
 	}
 
 	recipe, err := h.store.InsertOne(ctx, recipe)
 	if err != nil {
-		response.FromStatusCode(ctx, w, http.StatusInternalServerError, "")
+		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
@@ -88,14 +88,14 @@ func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
 
 	var recipe entity.Recipe
 	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
-		response.FromStatusCode(ctx, w, http.StatusBadRequest, "")
+		response.FromStatusCode(ctx, w, http.StatusBadRequest)
 		log.Println(err)
 		return
 	}
 
 	recipe, err := h.store.UpdateOne(ctx, id, recipe)
 	if err != nil {
-		response.FromStatusCode(ctx, w, http.StatusInternalServerError, "")
+		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
@@ -110,7 +110,7 @@ func (h *Recipe) DeleteOne(w http.ResponseWriter, r *http.Request) {
 
 	deletedId, err := h.store.DeleteOne(ctx, id)
 	if err != nil {
-		response.FromStatusCode(ctx, w, http.StatusInternalServerError, "")
+		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
