@@ -1,4 +1,5 @@
 api/cmd/lambda/lambda
+api/cmd/lambda/lambda.zip
 api/cmd/standalone/standalone
 
 api/cmd/standalone/.env
