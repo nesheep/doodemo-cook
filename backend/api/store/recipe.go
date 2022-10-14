@@ -20,7 +20,7 @@ func NewRecipe(db *mongo.Database) *Recipe {
 	return &Recipe{db: db}
 }
 
-func (s *Recipe) Find(ctx context.Context) (entity.RecipesWithTags, error) {
+func (s *Recipe) Find(ctx context.Context, limit int) (entity.RecipesWithTags, error) {
 	coll := s.db.Collection(recipeColl)
 
 	lookupStage := bson.D{{
@@ -33,7 +33,14 @@ func (s *Recipe) Find(ctx context.Context) (entity.RecipesWithTags, error) {
 		},
 	}}
 
-	cur, err := coll.Aggregate(ctx, mongo.Pipeline{lookupStage})
+	limitStage := bson.D{{Key: "$limit", Value: limit}}
+
+	total, err := coll.CountDocuments(ctx, bson.D{})
+	if err != nil {
+		return entity.RecipesWithTags{}, err
+	}
+
+	cur, err := coll.Aggregate(ctx, mongo.Pipeline{lookupStage, limitStage})
 	if err != nil {
 		return entity.RecipesWithTags{}, err
 	}
@@ -45,7 +52,7 @@ func (s *Recipe) Find(ctx context.Context) (entity.RecipesWithTags, error) {
 		data = append(data, recipe)
 	}
 
-	return entity.RecipesWithTags{Data: data, Total: len(data)}, nil
+	return entity.RecipesWithTags{Data: data, Total: int(total)}, nil
 }
 
 func (s *Recipe) FindOne(ctx context.Context, id string) (entity.RecipeWithTags, error) {

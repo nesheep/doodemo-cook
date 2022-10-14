@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type recipeStore interface {
-	Find(ctx context.Context) (entity.RecipesWithTags, error)
+	Find(ctx context.Context, limit int) (entity.RecipesWithTags, error)
 	FindOne(ctx context.Context, id string) (entity.RecipeWithTags, error)
 	InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error)
 	UpdateOne(ctx context.Context, id string, recipe entity.Recipe) (entity.Recipe, error)
@@ -31,7 +32,23 @@ func NewRecipe(store recipeStore) *Recipe {
 func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	recipes, err := h.store.Find(ctx)
+	q := r.URL.Query()
+
+	limit := 10
+	qLimit := q.Get("limit")
+	if qLimit != "" {
+		l, err := strconv.Atoi(qLimit)
+		if err != nil {
+			response.FromStatusCode(ctx, w, http.StatusBadRequest)
+			log.Println(err)
+			return
+		}
+		if l > 0 {
+			limit = l
+		}
+	}
+
+	recipes, err := h.store.Find(ctx, limit)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
