@@ -13,7 +13,7 @@ import (
 )
 
 type recipeStore interface {
-	Find(ctx context.Context, limit int, skip int) (entity.RecipesWithTags, error)
+	Find(ctx context.Context, q string, limit int, skip int) (entity.RecipesWithTags, error)
 	FindOne(ctx context.Context, id string) (entity.RecipeWithTags, error)
 	InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error)
 	UpdateOne(ctx context.Context, id string, recipe entity.Recipe) (entity.Recipe, error)
@@ -38,7 +38,7 @@ func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recipes, err := h.store.Find(ctx, q.limit, q.skip)
+	recipes, err := h.store.Find(ctx, q.q, q.limit, q.skip)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
