@@ -13,8 +13,8 @@ import (
 )
 
 type recipeStore interface {
-	Find(ctx context.Context) (entity.Recipes, error)
-	FindOne(ctx context.Context, id string) (entity.Recipe, error)
+	Find(ctx context.Context) (entity.RecipesWithTags, error)
+	FindOne(ctx context.Context, id string) (entity.RecipeWithTags, error)
 	InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error)
 	UpdateOne(ctx context.Context, id string, recipe entity.Recipe) (entity.Recipe, error)
 	DeleteOne(ctx context.Context, id string) (string, error)
@@ -64,7 +64,7 @@ func (h *Recipe) FindOne(w http.ResponseWriter, r *http.Request) {
 func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var recipe entity.Recipe
+	recipe := entity.NewRecipe()
 	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
 		log.Println(err)
@@ -86,7 +86,7 @@ func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
-	var recipe entity.Recipe
+	recipe := entity.NewRecipe()
 	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
 		log.Println(err)
