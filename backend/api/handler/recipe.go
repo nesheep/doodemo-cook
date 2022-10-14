@@ -14,7 +14,7 @@ import (
 )
 
 type recipeStore interface {
-	Find(ctx context.Context, limit int) (entity.RecipesWithTags, error)
+	Find(ctx context.Context, limit int, skip int) (entity.RecipesWithTags, error)
 	FindOne(ctx context.Context, id string) (entity.RecipeWithTags, error)
 	InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error)
 	UpdateOne(ctx context.Context, id string, recipe entity.Recipe) (entity.Recipe, error)
@@ -48,7 +48,21 @@ func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	recipes, err := h.store.Find(ctx, limit)
+	skip := 0
+	qSkip := q.Get("skip")
+	if qSkip != "" {
+		s, err := strconv.Atoi(qSkip)
+		if err != nil {
+			response.FromStatusCode(ctx, w, http.StatusBadRequest)
+			log.Println(err)
+			return
+		}
+		if s > 0 {
+			skip = s
+		}
+	}
+
+	recipes, err := h.store.Find(ctx, limit, skip)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
