@@ -3,16 +3,24 @@ package handler
 import (
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type recipeQuery struct {
 	q     string
+	tags  []string
 	limit int
 	skip  int
 }
 
 func (h *Recipe) parseQeury(queryRqw url.Values) (recipeQuery, error) {
 	q := queryRqw.Get("q")
+
+	tags := []string{}
+	qTags := queryRqw.Get("tags")
+	if qTags != "" {
+		tags = strings.Split(qTags, ",")
+	}
 
 	limit := 10
 	qLimit := queryRqw.Get("limit")
@@ -38,5 +46,5 @@ func (h *Recipe) parseQeury(queryRqw url.Values) (recipeQuery, error) {
 		}
 	}
 
-	return recipeQuery{q: q, limit: limit, skip: skip}, nil
+	return recipeQuery{q: q, tags: tags, limit: limit, skip: skip}, nil
 }

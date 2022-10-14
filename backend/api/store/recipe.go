@@ -20,16 +20,29 @@ func NewRecipe(db *mongo.Database) *Recipe {
 	return &Recipe{db: db}
 }
 
-func (s *Recipe) Find(ctx context.Context, q string, limit int, skip int) (entity.RecipesWithTags, error) {
+func (s *Recipe) Find(ctx context.Context, q string, tags []string, limit int, skip int) (entity.RecipesWithTags, error) {
 	coll := s.db.Collection(recipeColl)
 
 	filter := bson.M{}
 	pipeline := mongo.Pipeline{}
 
 	if q != "" {
-		filter = bson.M{
-			"title": bson.M{"$regex": q},
+		filter["title"] = bson.M{"$regex": q}
+	}
+
+	if len(tags) > 0 {
+		t := bson.A{}
+		for _, v := range tags {
+			objId, err := primitive.ObjectIDFromHex(v)
+			if err != nil {
+				return entity.RecipesWithTags{}, err
+			}
+			t = append(t, objId)
 		}
+		filter["tags"] = bson.M{"$all": t}
+	}
+
+	if len(filter) > 0 {
 		pipeline = append(pipeline, bson.D{{
 			Key:   "$match",
 			Value: filter,
