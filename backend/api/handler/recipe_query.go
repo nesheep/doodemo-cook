@@ -6,11 +6,14 @@ import (
 )
 
 type recipeQuery struct {
+	q     string
 	limit int
 	skip  int
 }
 
 func (h *Recipe) parseQeury(queryRqw url.Values) (recipeQuery, error) {
+	q := queryRqw.Get("q")
+
 	limit := 10
 	qLimit := queryRqw.Get("limit")
 	if qLimit != "" {
@@ -35,6 +38,5 @@ func (h *Recipe) parseQeury(queryRqw url.Values) (recipeQuery, error) {
 		}
 	}
 
-	q := recipeQuery{limit: limit, skip: skip}
-	return q, nil
+	return recipeQuery{q: q, limit: limit, skip: skip}, nil
 }

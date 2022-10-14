@@ -20,29 +20,42 @@ func NewRecipe(db *mongo.Database) *Recipe {
 	return &Recipe{db: db}
 }
 
-func (s *Recipe) Find(ctx context.Context, limit int, skip int) (entity.RecipesWithTags, error) {
+func (s *Recipe) Find(ctx context.Context, q string, limit int, skip int) (entity.RecipesWithTags, error) {
 	coll := s.db.Collection(recipeColl)
 
-	lookupStage := bson.D{{
-		Key: "$lookup",
-		Value: bson.M{
-			"from":         tagColl,
-			"localField":   "tags",
-			"foreignField": "_id",
-			"as":           "tags",
-		},
-	}}
+	filter := bson.M{}
+	pipeline := mongo.Pipeline{}
 
-	limitStage := bson.D{{Key: "$limit", Value: limit}}
+	if q != "" {
+		filter = bson.M{
+			"title": bson.M{"$regex": q},
+		}
+		pipeline = append(pipeline, bson.D{{
+			Key:   "$match",
+			Value: filter,
+		}})
+	}
 
-	skipStage := bson.D{{Key: "$skip", Value: skip}}
+	pipeline = append(pipeline,
+		bson.D{{Key: "$skip", Value: skip}},
+		bson.D{{Key: "$limit", Value: limit}},
+		bson.D{{
+			Key: "$lookup",
+			Value: bson.M{
+				"from":         tagColl,
+				"localField":   "tags",
+				"foreignField": "_id",
+				"as":           "tags",
+			},
+		}},
+	)
 
-	total, err := coll.CountDocuments(ctx, bson.D{})
+	total, err := coll.CountDocuments(ctx, filter)
 	if err != nil {
 		return entity.RecipesWithTags{}, err
 	}
 
-	cur, err := coll.Aggregate(ctx, mongo.Pipeline{skipStage, limitStage, lookupStage})
+	cur, err := coll.Aggregate(ctx, pipeline)
 	if err != nil {
 		return entity.RecipesWithTags{}, err
 	}
@@ -65,22 +78,23 @@ func (s *Recipe) FindOne(ctx context.Context, id string) (entity.RecipeWithTags,
 		return entity.RecipeWithTags{}, err
 	}
 
-	matchStage := bson.D{{
-		Key:   "$match",
-		Value: bson.M{"_id": objId}},
+	pipline := mongo.Pipeline{
+		{{
+			Key:   "$match",
+			Value: bson.M{"_id": objId},
+		}},
+		{{
+			Key: "$lookup",
+			Value: bson.M{
+				"from":         tagColl,
+				"localField":   "tags",
+				"foreignField": "_id",
+				"as":           "tags",
+			},
+		}},
 	}
 
-	lookupStage := bson.D{{
-		Key: "$lookup",
-		Value: bson.M{
-			"from":         tagColl,
-			"localField":   "tags",
-			"foreignField": "_id",
-			"as":           "tags",
-		},
-	}}
-
-	cur, err := coll.Aggregate(ctx, mongo.Pipeline{matchStage, lookupStage})
+	cur, err := coll.Aggregate(ctx, pipline)
 	if err != nil {
 		return entity.RecipeWithTags{}, err
 	}
