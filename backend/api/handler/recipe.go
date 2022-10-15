@@ -38,7 +38,7 @@ func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recipes, err := h.store.Find(ctx, q.q, q.tags, q.limit, q.skip)
+	recipes, err := h.store.Find(ctx, q.q, q.tags, q.limit, q.skip())
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
