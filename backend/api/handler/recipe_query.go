@@ -10,7 +10,11 @@ type recipeQuery struct {
 	q     string
 	tags  []string
 	limit int
-	skip  int
+	page  int
+}
+
+func (q recipeQuery) skip() int {
+	return q.limit * (q.page - 1)
 }
 
 func (h *Recipe) parseQeury(queryRqw url.Values) (recipeQuery, error) {
@@ -34,17 +38,17 @@ func (h *Recipe) parseQeury(queryRqw url.Values) (recipeQuery, error) {
 		}
 	}
 
-	skip := 0
-	qSkip := queryRqw.Get("skip")
-	if qSkip != "" {
-		s, err := strconv.Atoi(qSkip)
+	page := 1
+	qPage := queryRqw.Get("page")
+	if qPage != "" {
+		p, err := strconv.Atoi(qPage)
 		if err != nil {
 			return recipeQuery{}, err
 		}
-		if s > 0 {
-			skip = s
+		if p > 1 {
+			page = p
 		}
 	}
 
-	return recipeQuery{q: q, tags: tags, limit: limit, skip: skip}, nil
+	return recipeQuery{q: q, tags: tags, limit: limit, page: page}, nil
 }
