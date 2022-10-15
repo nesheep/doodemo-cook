@@ -1,13 +1,11 @@
 package auth
 
 import (
-	"context"
 	"doodemo-cook/lib/response"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
@@ -15,29 +13,12 @@ import (
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 )
 
-type CustomClaims struct {
-	Scope string `json:"scope"`
-}
-
-func (c CustomClaims) Validate(ctx context.Context) error {
-	return nil
-}
-
-func (c CustomClaims) HasScope(expectedScope string) bool {
-	result := strings.Split(c.Scope, " ")
-	for i := range result {
-		if result[i] == expectedScope {
-			return true
-		}
-	}
-	return false
-}
-
 func Middleware() func(next http.Handler) http.Handler {
 	domain := os.Getenv("AUTH0_DOMAIN")
 	if domain == "" {
 		log.Fatal("you must set your 'AUTH0_DOMAIN' environmental variable")
 	}
+
 	audience := os.Getenv("AUTH0_AUDIENCE")
 	if audience == "" {
 		log.Fatal("you must set your 'AUTH0_AUDIENCE' environmental variable")
@@ -65,6 +46,7 @@ func Middleware() func(next http.Handler) http.Handler {
 	if err != nil {
 		log.Fatalf("failed to set up the jwt validator")
 	}
+
 	errorHandler := func(w http.ResponseWriter, r *http.Request, err error) {
 		log.Printf("encountered error while validating JWT: %v", err)
 		response.FromStatusCode(r.Context(), w, http.StatusUnauthorized)
