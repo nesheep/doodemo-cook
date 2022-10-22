@@ -2,7 +2,8 @@ package server
 
 import (
 	"doodemo-cook/api/handler"
-	"doodemo-cook/api/store"
+	"doodemo-cook/api/repository"
+	"doodemo-cook/api/usecase"
 	"doodemo-cook/lib/auth"
 	"net/http"
 
@@ -20,8 +21,9 @@ func NewRouter(db *mongo.Database) http.Handler {
 	})
 
 	r.Route("/recipes", func(r chi.Router) {
-		s := store.NewRecipe(db)
-		h := handler.NewRecipe(s)
+		repo := repository.NewRecipe(db)
+		u := usecase.NewRecipe(repo)
+		h := handler.NewRecipe(u)
 		r.Use(authMiddleware)
 		r.Get("/", h.Find)
 		r.Get("/{id}", h.FindOne)
@@ -31,14 +33,11 @@ func NewRouter(db *mongo.Database) http.Handler {
 	})
 
 	r.Route("/tags", func(r chi.Router) {
-		s := store.NewTag(db)
-		h := handler.NewTag(s)
+		repo := repository.NewTag(db)
+		u := usecase.NewTag(repo)
+		h := handler.NewTag(u)
 		r.Use(authMiddleware)
 		r.Get("/", h.Find)
-		r.Get("/{id}", h.FindOne)
-		r.Post("/", h.InsertOne)
-		r.Put("/{id}", h.UpdateOne)
-		r.Delete("/{id}", h.DeleteOne)
 	})
 
 	return r

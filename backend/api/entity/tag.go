@@ -1,11 +1,8 @@
 package entity
 
 type Tag struct {
-	ID   string `json:"id,omitempty" bson:"_id,omitempty"`
-	Name string `json:"name" bson:"name"`
+	ID   string
+	Name string
 }
 
-type Tags struct {
-	Data  []Tag `json:"data" bson:"data"`
-	Total int   `json:"total"`
-}
+type Tags []Tag
