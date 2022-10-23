@@ -12,20 +12,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-type recipeStore interface {
-	Find(ctx context.Context, q string, tags []string, limit int, skip int) (entity.RecipesWithTags, error)
-	FindOne(ctx context.Context, id string) (entity.RecipeWithTags, error)
+type recipeUsecase interface {
+	Find(ctx context.Context, q string, tags []string, limit int, skip int) (entity.Recipes, int, error)
+	FindOne(ctx context.Context, id string) (entity.Recipe, error)
 	InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error)
 	UpdateOne(ctx context.Context, id string, recipe entity.Recipe) (entity.Recipe, error)
-	DeleteOne(ctx context.Context, id string) (string, error)
+	DeleteOne(ctx context.Context, id string) error
 }
 
 type Recipe struct {
-	store recipeStore
+	u recipeUsecase
 }
 
-func NewRecipe(store recipeStore) *Recipe {
-	return &Recipe{store: store}
+func NewRecipe(u recipeUsecase) *Recipe {
+	return &Recipe{u: u}
 }
 
 func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
@@ -38,14 +38,15 @@ func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	recipes, err := h.store.Find(ctx, q.q, q.tags, q.limit, q.skip())
+	recipes, cnt, err := h.u.Find(ctx, q.q, q.tags, q.limit, q.skip())
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
 
-	response.JSON(ctx, w, recipes, http.StatusOK)
+	res := resRecipesFromRecipes(recipes, cnt)
+	response.JSON(ctx, w, res, http.StatusOK)
 }
 
 func (h *Recipe) FindOne(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +54,7 @@ func (h *Recipe) FindOne(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
-	recipe, err := h.store.FindOne(ctx, id)
+	recipe, err := h.u.FindOne(ctx, id)
 	if err == mongo.ErrNoDocuments {
 		response.FromStatusCode(ctx, w, http.StatusNotFound)
 		log.Println(err)
@@ -65,27 +66,31 @@ func (h *Recipe) FindOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response.JSON(ctx, w, recipe, http.StatusOK)
+	res := resRecipeFromRecipe(recipe)
+	response.JSON(ctx, w, res, http.StatusOK)
 }
 
 func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	recipe := entity.NewRecipe()
-	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
+	var req reqRecipe
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
 		log.Println(err)
 		return
 	}
 
-	recipe, err := h.store.InsertOne(ctx, recipe)
+	recipe := req.toRecipe()
+	insertedRecipe, err := h.u.InsertOne(ctx, recipe)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
 
-	response.JSON(ctx, w, recipe, http.StatusCreated)
+	res := resRecipeFromRecipe(insertedRecipe)
+
+	response.JSON(ctx, w, res, http.StatusCreated)
 }
 
 func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
@@ -93,21 +98,23 @@ func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
-	recipe := entity.NewRecipe()
-	if err := json.NewDecoder(r.Body).Decode(&recipe); err != nil {
+	var req reqRecipe
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
 		log.Println(err)
 		return
 	}
 
-	recipe, err := h.store.UpdateOne(ctx, id, recipe)
+	recipe := req.toRecipe()
+	updatedRecipe, err := h.u.UpdateOne(ctx, id, recipe)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
 
-	response.JSON(ctx, w, recipe, http.StatusOK)
+	res := resRecipeFromRecipe(updatedRecipe)
+	response.JSON(ctx, w, res, http.StatusOK)
 }
 
 func (h *Recipe) DeleteOne(w http.ResponseWriter, r *http.Request) {
@@ -115,16 +122,15 @@ func (h *Recipe) DeleteOne(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
-	deletedId, err := h.store.DeleteOne(ctx, id)
-	if err != nil {
+	if err := h.u.DeleteOne(ctx, id); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
 		log.Println(err)
 		return
 	}
 
-	b := struct {
+	res := struct {
 		DeletedId string `json:"deletedId"`
-	}{DeletedId: deletedId}
+	}{DeletedId: id}
 
-	response.JSON(ctx, w, b, http.StatusOK)
+	response.JSON(ctx, w, res, http.StatusOK)
 }
