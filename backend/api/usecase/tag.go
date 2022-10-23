@@ -21,12 +21,12 @@ func NewTag(r tagRepository) *Tag {
 func (u *Tag) Find(ctx context.Context) (entity.Tags, int, error) {
 	tags, err := u.r.Find(ctx)
 	if err != nil {
-		return entity.Tags{}, 0, err
+		return nil, 0, err
 	}
 
 	cnt, err := u.r.Count(ctx)
 	if err != nil {
-		return entity.Tags{}, 0, err
+		return nil, 0, err
 	}
 
 	return tags, cnt, nil

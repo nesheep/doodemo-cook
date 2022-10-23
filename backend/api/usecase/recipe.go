@@ -25,12 +25,12 @@ func NewRecipe(r recipeRepository) *Recipe {
 func (u *Recipe) Find(ctx context.Context, q string, tags []string, limit int, skip int) (entity.Recipes, int, error) {
 	recipes, err := u.r.Find(ctx, q, tags, limit, skip)
 	if err != nil {
-		return entity.Recipes{}, 0, err
+		return nil, 0, err
 	}
 
 	cnt, err := u.r.Count(ctx, q, tags)
 	if err != nil {
-		return entity.Recipes{}, 0, err
+		return nil, 0, err
 	}
 
 	return recipes, cnt, nil
