@@ -20,18 +20,17 @@ func NewRouter(db *mongo.Database) http.Handler {
 		w.Write([]byte("OK"))
 	})
 
-	tr := repository.NewTag(db)
-	rr := repository.NewRecipe(db, tr)
-
 	r.Route("/tags", func(r chi.Router) {
-		u := usecase.NewTag(tr)
+		repo := repository.NewTag(db)
+		u := usecase.NewTag(repo)
 		h := handler.NewTag(u)
 		r.Use(authMiddleware)
 		r.Get("/", h.Find)
 	})
 
 	r.Route("/recipes", func(r chi.Router) {
-		u := usecase.NewRecipe(rr)
+		repo := repository.NewRecipe(db)
+		u := usecase.NewRecipe(repo)
 		h := handler.NewRecipe(u)
 		r.Use(authMiddleware)
 		r.Get("/", h.Find)
