@@ -7,7 +7,8 @@ import (
 )
 
 type bInputTag struct {
-	Name string `bson:"name"`
+	Name      string `bson:"name"`
+	RecipeNum int    `bson:"recipe_num"`
 }
 
 func bInputTagFromTag(tag entity.Tag) bInputTag {
@@ -15,12 +16,17 @@ func bInputTagFromTag(tag entity.Tag) bInputTag {
 }
 
 type bTag struct {
-	ID   primitive.ObjectID `bson:"_id"`
-	Name string             `bson:"name"`
+	ID        primitive.ObjectID `bson:"_id"`
+	Name      string             `bson:"name"`
+	RecipeNum int                `bson:"recipe_num"`
 }
 
 func (t bTag) toTag() entity.Tag {
-	return entity.Tag{ID: t.ID.Hex(), Name: t.Name}
+	return entity.Tag{
+		ID:        t.ID.Hex(),
+		Name:      t.Name,
+		RecipeNum: t.RecipeNum,
+	}
 }
 
 type bTags []bTag

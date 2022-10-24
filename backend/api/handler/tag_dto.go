@@ -3,12 +3,17 @@ package handler
 import "doodemo-cook/api/entity"
 
 type resTag struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	RecipeNum int    `json:"recipeNum"`
 }
 
 func resTagFromTag(tag entity.Tag) resTag {
-	return resTag{ID: tag.ID, Name: tag.Name}
+	return resTag{
+		ID:        tag.ID,
+		Name:      tag.Name,
+		RecipeNum: tag.RecipeNum,
+	}
 }
 
 type resTags struct {

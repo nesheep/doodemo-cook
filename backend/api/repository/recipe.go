@@ -137,7 +137,7 @@ func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, e
 	coll := r.db.Collection(recipeColl)
 
 	for i, v := range recipe.Tags {
-		id, err := r.tag.insertIfNotExists(ctx, v)
+		id, err := r.tag.insertOrIncrement(ctx, v)
 		if err != nil {
 			return "", err
 		}
@@ -168,29 +168,67 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
+	}
+
+	old, err := r.FindOne(ctx, id)
+	if err != nil {
+		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
 	}
 
 	for i, v := range recipe.Tags {
-		id, err := r.tag.insertIfNotExists(ctx, v)
-		if err != nil {
-			return err
+		exists := false
+		for _, ov := range old.Tags {
+			if v.Name == ov.Name {
+				exists = true
+				break
+			}
 		}
-		recipe.Tags[i].ID = id
+		if exists {
+			tag, err := r.tag.findByName(ctx, v.Name)
+			if err != nil {
+				return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
+			}
+			recipe.Tags[i].ID = tag.ID
+			continue
+		}
+
+		tagId, err := r.tag.insertOrIncrement(ctx, v)
+		if err != nil {
+			return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
+		}
+		recipe.Tags[i].ID = tagId
+	}
+
+	for _, ov := range old.Tags {
+		exists := false
+		for _, v := range recipe.Tags {
+			if ov.Name == v.Name {
+				exists = true
+				break
+			}
+		}
+		if exists {
+			continue
+		}
+
+		if err := r.tag.deleteOrDecrement(ctx, ov.ID); err != nil {
+			return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
+		}
 	}
 
 	b, err := bInputRecipeFromRecipe(recipe)
 	if err != nil {
-		return err
+		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
 	}
 
 	result, err := coll.ReplaceOne(ctx, bson.M{"_id": oid}, b)
 	if err != nil {
-		return err
+		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
 	}
 
 	if result.MatchedCount < 1 {
-		return fmt.Errorf("not found %s", id)
+		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
 	}
 
 	return nil
@@ -202,6 +240,17 @@ func (r *Recipe) DeleteOne(ctx context.Context, id string) error {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err
+	}
+
+	recipe, err := r.FindOne(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range recipe.Tags {
+		if err := r.tag.deleteOrDecrement(ctx, v.ID); err != nil {
+			return err
+		}
 	}
 
 	result, err := coll.DeleteOne(ctx, bson.M{"_id": oid})
