@@ -28,8 +28,8 @@ type Recipe struct {
 	tag *Tag
 }
 
-func NewRecipe(db *mongo.Database, tag *Tag) *Recipe {
-	return &Recipe{db: db, tag: tag}
+func NewRecipe(db *mongo.Database) *Recipe {
+	return &Recipe{db: db, tag: &Tag{db: db}}
 }
 
 func (r *Recipe) buildFilter(q string, tags []string) (bson.M, error) {
