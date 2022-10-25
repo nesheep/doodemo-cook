@@ -134,27 +134,44 @@ func (r *Recipe) FindOne(ctx context.Context, id string) (entity.Recipe, error) 
 }
 
 func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, error) {
-	coll := r.db.Collection(recipeColl)
-
-	for i, v := range recipe.Tags {
-		id, err := r.tag.insertOrIncrement(ctx, v)
-		if err != nil {
-			return "", err
+	var id any
+	err := r.db.Client().UseSession(ctx, func(sc mongo.SessionContext) error {
+		if err := sc.StartTransaction(); err != nil {
+			return err
 		}
-		recipe.Tags[i].ID = id
-	}
 
-	b, err := bInputRecipeFromRecipe(recipe)
+		coll := r.db.Collection(recipeColl)
+
+		for i, v := range recipe.Tags {
+			id, err := r.tag.insertOrIncrement(sc, v)
+			if err != nil {
+				sc.AbortTransaction(context.Background())
+				return err
+			}
+			recipe.Tags[i].ID = id
+		}
+
+		b, err := bInputRecipeFromRecipe(recipe)
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
+		}
+
+		result, err := coll.InsertOne(sc, b)
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
+		}
+
+		id = result.InsertedID
+
+		sc.CommitTransaction(context.Background())
+		return nil
+	})
 	if err != nil {
 		return "", err
 	}
 
-	result, err := coll.InsertOne(ctx, b)
-	if err != nil {
-		return "", err
-	}
-
-	id := result.InsertedID
 	oid, ok := id.(primitive.ObjectID)
 	if !ok {
 		return "", errors.New("read inserted ID error")
@@ -164,70 +181,90 @@ func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, e
 }
 
 func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe) error {
-	coll := r.db.Collection(recipeColl)
-
-	oid, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
-	}
-
-	old, err := r.FindOne(ctx, id)
-	if err != nil {
-		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
-	}
-
-	for i, v := range recipe.Tags {
-		exists := false
-		for _, ov := range old.Tags {
-			if v.Name == ov.Name {
-				exists = true
-				break
-			}
-		}
-		if exists {
-			tag, err := r.tag.findByName(ctx, v.Name)
-			if err != nil {
-				return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
-			}
-			recipe.Tags[i].ID = tag.ID
-			continue
+	err := r.db.Client().UseSession(ctx, func(sc mongo.SessionContext) error {
+		if err := sc.StartTransaction(); err != nil {
+			return err
 		}
 
-		tagId, err := r.tag.insertOrIncrement(ctx, v)
+		coll := r.db.Collection(recipeColl)
+
+		oid, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
-			return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
+			sc.AbortTransaction(context.Background())
+			return err
 		}
-		recipe.Tags[i].ID = tagId
-	}
 
-	for _, ov := range old.Tags {
-		exists := false
-		for _, v := range recipe.Tags {
-			if ov.Name == v.Name {
-				exists = true
-				break
+		old, err := r.FindOne(sc, id)
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
+		}
+
+		for i, v := range recipe.Tags {
+			exists := false
+			for _, ov := range old.Tags {
+				if v.Name == ov.Name {
+					exists = true
+					break
+				}
+			}
+			if exists {
+				tag, err := r.tag.findByName(sc, v.Name)
+				if err != nil {
+					sc.AbortTransaction(context.Background())
+					return err
+				}
+				recipe.Tags[i].ID = tag.ID
+				continue
+			}
+
+			tagId, err := r.tag.insertOrIncrement(sc, v)
+			if err != nil {
+				sc.AbortTransaction(context.Background())
+				return err
+			}
+			recipe.Tags[i].ID = tagId
+		}
+
+		for _, ov := range old.Tags {
+			exists := false
+			for _, v := range recipe.Tags {
+				if ov.Name == v.Name {
+					exists = true
+					break
+				}
+			}
+			if exists {
+				continue
+			}
+
+			if err := r.tag.deleteOrDecrement(sc, ov.ID); err != nil {
+				sc.AbortTransaction(context.Background())
+				return err
 			}
 		}
-		if exists {
-			continue
+
+		b, err := bInputRecipeFromRecipe(recipe)
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
 		}
 
-		if err := r.tag.deleteOrDecrement(ctx, ov.ID); err != nil {
-			return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
+		result, err := coll.ReplaceOne(sc, bson.M{"_id": oid}, b)
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
 		}
-	}
 
-	b, err := bInputRecipeFromRecipe(recipe)
+		if result.MatchedCount < 1 {
+			sc.AbortTransaction(context.Background())
+			return err
+		}
+
+		sc.CommitTransaction(context.Background())
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
-	}
-
-	result, err := coll.ReplaceOne(ctx, bson.M{"_id": oid}, b)
-	if err != nil {
-		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
-	}
-
-	if result.MatchedCount < 1 {
 		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
 	}
 
@@ -235,31 +272,48 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 }
 
 func (r *Recipe) DeleteOne(ctx context.Context, id string) error {
-	coll := r.db.Collection(recipeColl)
-
-	oid, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		return err
-	}
-
-	recipe, err := r.FindOne(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	for _, v := range recipe.Tags {
-		if err := r.tag.deleteOrDecrement(ctx, v.ID); err != nil {
+	err := r.db.Client().UseSession(ctx, func(sc mongo.SessionContext) error {
+		if err := sc.StartTransaction(); err != nil {
 			return err
 		}
-	}
 
-	result, err := coll.DeleteOne(ctx, bson.M{"_id": oid})
+		coll := r.db.Collection(recipeColl)
+
+		oid, err := primitive.ObjectIDFromHex(id)
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
+		}
+
+		recipe, err := r.FindOne(sc, id)
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
+		}
+
+		for _, v := range recipe.Tags {
+			if err := r.tag.deleteOrDecrement(sc, v.ID); err != nil {
+				sc.AbortTransaction(context.Background())
+				return err
+			}
+		}
+
+		result, err := coll.DeleteOne(sc, bson.M{"_id": oid})
+		if err != nil {
+			sc.AbortTransaction(context.Background())
+			return err
+		}
+
+		if result.DeletedCount < 1 {
+			sc.AbortTransaction(context.Background())
+			return fmt.Errorf("not found %s", id)
+		}
+
+		sc.CommitTransaction(context.Background())
+		return nil
+	})
 	if err != nil {
 		return err
-	}
-
-	if result.DeletedCount < 1 {
-		return fmt.Errorf("not found %s", id)
 	}
 
 	return nil
