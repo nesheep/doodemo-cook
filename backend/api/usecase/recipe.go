@@ -46,6 +46,7 @@ func (u *Recipe) FindOne(ctx context.Context, id string) (entity.Recipe, error) 
 }
 
 func (u *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Recipe, error) {
+	recipe.Tags = recipe.Tags.Unique()
 	id, err := u.r.InsertOne(ctx, recipe)
 	if err != nil {
 		return entity.Recipe{}, err
@@ -60,6 +61,7 @@ func (u *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (entity.Re
 }
 
 func (u *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe) (entity.Recipe, error) {
+	recipe.Tags = recipe.Tags.Unique()
 	if err := u.r.UpdateOne(ctx, id, recipe); err != nil {
 		return entity.Recipe{}, err
 	}
