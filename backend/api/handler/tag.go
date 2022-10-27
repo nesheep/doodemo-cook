@@ -1,16 +1,10 @@
 package handler
 
 import (
-	"context"
-	"doodemo-cook/api/entity"
 	"doodemo-cook/lib/response"
 	"log"
 	"net/http"
 )
-
-type tagUsecase interface {
-	Find(ctx context.Context) (entity.Tags, int, error)
-}
 
 type Tag struct {
 	u tagUsecase
