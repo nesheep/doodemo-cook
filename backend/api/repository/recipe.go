@@ -183,18 +183,17 @@ func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, e
 }
 
 func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe) error {
-	err := r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	err = r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
 		if err := sc.StartTransaction(); err != nil {
 			return err
 		}
 
 		coll := r.coll()
-
-		oid, err := primitive.ObjectIDFromHex(id)
-		if err != nil {
-			sc.AbortTransaction(context.Background())
-			return err
-		}
 
 		old, err := r.FindOne(sc, id)
 		if err != nil {
@@ -206,26 +205,20 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 			exists := false
 			for _, ov := range old.Tags {
 				if v.Name == ov.Name {
+					recipe.Tags[i].ID = ov.ID
 					exists = true
 					break
 				}
 			}
-			if exists {
-				tag, err := r.tag.findByName(sc, v.Name)
+
+			if !exists {
+				tagId, err := r.tag.insertOrIncrement(sc, v)
 				if err != nil {
 					sc.AbortTransaction(context.Background())
 					return err
 				}
-				recipe.Tags[i].ID = tag.ID
-				continue
+				recipe.Tags[i].ID = tagId
 			}
-
-			tagId, err := r.tag.insertOrIncrement(sc, v)
-			if err != nil {
-				sc.AbortTransaction(context.Background())
-				return err
-			}
-			recipe.Tags[i].ID = tagId
 		}
 
 		for _, ov := range old.Tags {
@@ -236,13 +229,12 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 					break
 				}
 			}
-			if exists {
-				continue
-			}
 
-			if err := r.tag.deleteOrDecrement(sc, ov.ID); err != nil {
-				sc.AbortTransaction(context.Background())
-				return err
+			if !exists {
+				if err := r.tag.deleteOrDecrement(sc, ov.ID); err != nil {
+					sc.AbortTransaction(context.Background())
+					return err
+				}
 			}
 		}
 
@@ -252,13 +244,7 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 			return err
 		}
 
-		result, err := coll.ReplaceOne(sc, bson.M{"_id": oid}, b)
-		if err != nil {
-			sc.AbortTransaction(context.Background())
-			return err
-		}
-
-		if result.MatchedCount < 1 {
+		if _, err = coll.ReplaceOne(sc, bson.M{"_id": oid}, b); err != nil {
 			sc.AbortTransaction(context.Background())
 			return err
 		}
@@ -274,18 +260,17 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 }
 
 func (r *Recipe) DeleteOne(ctx context.Context, id string) error {
-	err := r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+
+	err = r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
 		if err := sc.StartTransaction(); err != nil {
 			return err
 		}
 
 		coll := r.coll()
-
-		oid, err := primitive.ObjectIDFromHex(id)
-		if err != nil {
-			sc.AbortTransaction(context.Background())
-			return err
-		}
 
 		recipe, err := r.FindOne(sc, id)
 		if err != nil {
@@ -300,15 +285,9 @@ func (r *Recipe) DeleteOne(ctx context.Context, id string) error {
 			}
 		}
 
-		result, err := coll.DeleteOne(sc, bson.M{"_id": oid})
-		if err != nil {
+		if _, err := coll.DeleteOne(sc, bson.M{"_id": oid}); err != nil {
 			sc.AbortTransaction(context.Background())
 			return err
-		}
-
-		if result.DeletedCount < 1 {
-			sc.AbortTransaction(context.Background())
-			return fmt.Errorf("not found %s", id)
 		}
 
 		sc.CommitTransaction(context.Background())
