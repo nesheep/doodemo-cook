@@ -1,5 +1,8 @@
 .PHONY: build build-lambda zip
 
+test:
+	go test -count=1 ./...
+
 build:
 	cd cmd/standalone && go build
 
