@@ -11,9 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-const recipeColl = "recipes"
-
-var lookupStage = bson.D{{
+var tagLookupStage = bson.D{{
 	Key: "$lookup",
 	Value: bson.M{
 		"from":         tagColl,
@@ -24,12 +22,16 @@ var lookupStage = bson.D{{
 }}
 
 type Recipe struct {
-	db  *mongo.Database
+	c   *mongo.Client
 	tag *Tag
 }
 
-func NewRecipe(db *mongo.Database) *Recipe {
-	return &Recipe{db: db, tag: &Tag{db: db}}
+func NewRecipe(c *mongo.Client) *Recipe {
+	return &Recipe{c: c, tag: &Tag{c: c}}
+}
+
+func (r *Recipe) coll() *mongo.Collection {
+	return r.c.Database(dbName).Collection(recipeColl)
 }
 
 func (r *Recipe) buildFilter(q string, tags []string) (bson.M, error) {
@@ -55,7 +57,7 @@ func (r *Recipe) buildFilter(q string, tags []string) (bson.M, error) {
 }
 
 func (r *Recipe) Count(ctx context.Context, q string, tags []string) (int, error) {
-	coll := r.db.Collection(recipeColl)
+	coll := r.coll()
 
 	filter, err := r.buildFilter(q, tags)
 	if err != nil {
@@ -71,7 +73,7 @@ func (r *Recipe) Count(ctx context.Context, q string, tags []string) (int, error
 }
 
 func (r *Recipe) Find(ctx context.Context, q string, tags []string, limit int, skip int) (entity.Recipes, error) {
-	coll := r.db.Collection(recipeColl)
+	coll := r.coll()
 
 	filter, err := r.buildFilter(q, tags)
 	if err != nil {
@@ -87,7 +89,7 @@ func (r *Recipe) Find(ctx context.Context, q string, tags []string, limit int, s
 	pipeline = append(pipeline,
 		bson.D{{Key: "$skip", Value: skip}},
 		bson.D{{Key: "$limit", Value: limit}},
-		lookupStage,
+		tagLookupStage,
 	)
 
 	recipes := entity.Recipes{}
@@ -106,7 +108,7 @@ func (r *Recipe) Find(ctx context.Context, q string, tags []string, limit int, s
 }
 
 func (r *Recipe) FindOne(ctx context.Context, id string) (entity.Recipe, error) {
-	coll := r.db.Collection(recipeColl)
+	coll := r.coll()
 
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -115,7 +117,7 @@ func (r *Recipe) FindOne(ctx context.Context, id string) (entity.Recipe, error) 
 
 	pipline := mongo.Pipeline{
 		{{Key: "$match", Value: bson.M{"_id": oid}}},
-		lookupStage,
+		tagLookupStage,
 	}
 
 	cur, err := coll.Aggregate(ctx, pipline)
@@ -135,12 +137,12 @@ func (r *Recipe) FindOne(ctx context.Context, id string) (entity.Recipe, error) 
 
 func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, error) {
 	var id any
-	err := r.db.Client().UseSession(ctx, func(sc mongo.SessionContext) error {
+	err := r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
 		if err := sc.StartTransaction(); err != nil {
 			return err
 		}
 
-		coll := r.db.Collection(recipeColl)
+		coll := r.coll()
 
 		for i, v := range recipe.Tags {
 			id, err := r.tag.insertOrIncrement(sc, v)
@@ -181,12 +183,12 @@ func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, e
 }
 
 func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe) error {
-	err := r.db.Client().UseSession(ctx, func(sc mongo.SessionContext) error {
+	err := r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
 		if err := sc.StartTransaction(); err != nil {
 			return err
 		}
 
-		coll := r.db.Collection(recipeColl)
+		coll := r.coll()
 
 		oid, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
@@ -272,12 +274,12 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 }
 
 func (r *Recipe) DeleteOne(ctx context.Context, id string) error {
-	err := r.db.Client().UseSession(ctx, func(sc mongo.SessionContext) error {
+	err := r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
 		if err := sc.StartTransaction(); err != nil {
 			return err
 		}
 
-		coll := r.db.Collection(recipeColl)
+		coll := r.coll()
 
 		oid, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
