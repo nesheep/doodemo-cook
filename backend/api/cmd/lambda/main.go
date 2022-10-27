@@ -13,12 +13,12 @@ import (
 var handlerAdapter *httpadapter.HandlerAdapter
 
 func init() {
-	db, _, err := database.New(context.Background())
+	c, err := database.New(context.Background())
 	if err != nil {
 		log.Fatalf("failed to connect to db: %v", err)
 	}
 
-	r := server.NewRouter(db)
+	r := server.NewRouter(c)
 	handlerAdapter = httpadapter.New(r)
 }
 

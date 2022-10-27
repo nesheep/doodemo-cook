@@ -11,18 +11,20 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-const tagColl = "tags"
-
 type Tag struct {
-	db *mongo.Database
+	c *mongo.Client
 }
 
-func NewTag(db *mongo.Database) *Tag {
-	return &Tag{db: db}
+func NewTag(c *mongo.Client) *Tag {
+	return &Tag{c: c}
+}
+
+func (r *Tag) coll() *mongo.Collection {
+	return r.c.Database(dbName).Collection(tagColl)
 }
 
 func (r *Tag) Count(ctx context.Context) (int, error) {
-	coll := r.db.Collection(tagColl)
+	coll := r.coll()
 
 	cnt, err := coll.CountDocuments(ctx, bson.D{})
 	if err != nil {
@@ -33,7 +35,7 @@ func (r *Tag) Count(ctx context.Context) (int, error) {
 }
 
 func (r *Tag) Find(ctx context.Context) (entity.Tags, error) {
-	coll := r.db.Collection(tagColl)
+	coll := r.coll()
 
 	cur, err := coll.Find(ctx, bson.D{})
 	if err != nil {
@@ -51,7 +53,7 @@ func (r *Tag) Find(ctx context.Context) (entity.Tags, error) {
 }
 
 func (r *Tag) findOne(ctx context.Context, id string) (entity.Tag, error) {
-	coll := r.db.Collection(tagColl)
+	coll := r.coll()
 
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -67,7 +69,7 @@ func (r *Tag) findOne(ctx context.Context, id string) (entity.Tag, error) {
 }
 
 func (r *Tag) findByName(ctx context.Context, name string) (entity.Tag, error) {
-	coll := r.db.Collection(tagColl)
+	coll := r.coll()
 
 	var b bTag
 	if err := coll.FindOne(ctx, bson.M{"name": name}).Decode(&b); err != nil {
@@ -78,7 +80,7 @@ func (r *Tag) findByName(ctx context.Context, name string) (entity.Tag, error) {
 }
 
 func (r *Tag) insertOne(ctx context.Context, tag entity.Tag) (string, error) {
-	coll := r.db.Collection(tagColl)
+	coll := r.coll()
 
 	b := bInputTagFromTag(tag)
 	b.RecipeNum = 1
@@ -97,7 +99,7 @@ func (r *Tag) insertOne(ctx context.Context, tag entity.Tag) (string, error) {
 }
 
 func (r *Tag) incrementRecipeNum(ctx context.Context, id string, amount int) error {
-	coll := r.db.Collection(tagColl)
+	coll := r.coll()
 
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
@@ -120,7 +122,7 @@ func (r *Tag) incrementRecipeNum(ctx context.Context, id string, amount int) err
 }
 
 func (r *Tag) deleteOne(ctx context.Context, id string) error {
-	coll := r.db.Collection(tagColl)
+	coll := r.coll()
 
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {

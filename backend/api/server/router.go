@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func NewRouter(db *mongo.Database) http.Handler {
+func NewRouter(c *mongo.Client) http.Handler {
 	r := chi.NewMux()
 
 	authMiddleware := auth.Middleware()
@@ -21,7 +21,7 @@ func NewRouter(db *mongo.Database) http.Handler {
 	})
 
 	r.Route("/tags", func(r chi.Router) {
-		repo := repository.NewTag(db)
+		repo := repository.NewTag(c)
 		u := usecase.NewTag(repo)
 		h := handler.NewTag(u)
 		r.Use(authMiddleware)
@@ -29,7 +29,7 @@ func NewRouter(db *mongo.Database) http.Handler {
 	})
 
 	r.Route("/recipes", func(r chi.Router) {
-		repo := repository.NewRecipe(db)
+		repo := repository.NewRecipe(c)
 		u := usecase.NewRecipe(repo)
 		h := handler.NewRecipe(u)
 		r.Use(authMiddleware)

@@ -22,12 +22,12 @@ func run(ctx context.Context) error {
 		log.Println("no .env file found")
 	}
 
-	db, disconnect, err := database.New(ctx)
+	c, err := database.New(ctx)
 	if err != nil {
 		log.Fatalf("failed to connect to db: %v", err)
 	}
 	defer func() {
-		if err := disconnect(context.Background()); err != nil {
+		if err := c.Disconnect(context.Background()); err != nil {
 			log.Printf("failed to disconnect db: %v", err)
 		}
 	}()
@@ -41,7 +41,7 @@ func run(ctx context.Context) error {
 	url := fmt.Sprintf("http://%s", l.Addr().String())
 	log.Printf("start with: %v", url)
 
-	r := server.NewRouter(db)
+	r := server.NewRouter(c)
 	s := server.NewServer(r, l)
 
 	return s.Run(ctx)
