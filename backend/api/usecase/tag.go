@@ -5,11 +5,6 @@ import (
 	"doodemo-cook/api/entity"
 )
 
-type tagRepository interface {
-	Count(ctx context.Context) (int, error)
-	Find(ctx context.Context) (entity.Tags, error)
-}
-
 type Tag struct {
 	r tagRepository
 }
