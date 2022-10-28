@@ -8,11 +8,13 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func NewRouter(c *mongo.Client) http.Handler {
 	r := chi.NewMux()
+	v := validator.New()
 
 	authMiddleware := auth.Middleware()
 
@@ -31,7 +33,7 @@ func NewRouter(c *mongo.Client) http.Handler {
 	r.Route("/recipes", func(r chi.Router) {
 		repo := repository.NewRecipe(c)
 		u := usecase.NewRecipe(repo)
-		h := handler.NewRecipe(u)
+		h := handler.NewRecipe(u, v)
 		r.Use(authMiddleware)
 		r.Get("/", h.Find)
 		r.Get("/{id}", h.FindOne)

@@ -3,9 +3,9 @@ package handler
 import "doodemo-cook/api/entity"
 
 type reqRecipe struct {
-	Title string   `json:"title"`
-	URL   string   `json:"url"`
-	Tags  []string `json:"tags"`
+	Title string   `json:"title" validate:"required,max=50"`
+	URL   string   `json:"url"   validate:"required,url"`
+	Tags  []string `json:"tags"  validate:"dive,required"`
 }
 
 func (r reqRecipe) toRecipe() entity.Recipe {

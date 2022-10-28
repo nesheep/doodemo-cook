@@ -7,15 +7,17 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Recipe struct {
 	u recipeUsecase
+	v *validator.Validate
 }
 
-func NewRecipe(u recipeUsecase) *Recipe {
-	return &Recipe{u: u}
+func NewRecipe(u recipeUsecase, v *validator.Validate) *Recipe {
+	return &Recipe{u: u, v: v}
 }
 
 func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +72,12 @@ func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.v.Struct(req); err != nil {
+		response.FromStatusCode(ctx, w, http.StatusBadRequest)
+		log.Println(err)
+		return
+	}
+
 	recipe := req.toRecipe()
 	insertedRecipe, err := h.u.InsertOne(ctx, recipe)
 	if err != nil {
@@ -90,6 +98,12 @@ func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
 
 	var req reqRecipe
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.FromStatusCode(ctx, w, http.StatusBadRequest)
+		log.Println(err)
+		return
+	}
+
+	if err := h.v.Struct(req); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
 		log.Println(err)
 		return
