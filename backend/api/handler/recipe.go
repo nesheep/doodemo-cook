@@ -3,6 +3,7 @@ package handler
 import (
 	"doodemo-cook/lib/response"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 
@@ -23,17 +24,17 @@ func NewRecipe(u recipeUsecase, v *validator.Validate) *Recipe {
 func (h *Recipe) Find(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	q, err := h.parseQeury(r.URL.Query())
+	q, err := h.parseQuery(r.URL.Query())
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.Find': %v", err)
 		return
 	}
 
 	recipes, cnt, err := h.u.Find(ctx, q.q, q.tags, q.limit, q.skip())
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.Find': %v", err)
 		return
 	}
 
@@ -47,14 +48,14 @@ func (h *Recipe) FindOne(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	recipe, err := h.u.FindOne(ctx, id)
-	if err == mongo.ErrNoDocuments {
-		response.FromStatusCode(ctx, w, http.StatusNotFound)
-		log.Println(err)
-		return
-	}
 	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			response.FromStatusCode(ctx, w, http.StatusNotFound)
+			log.Printf("fail 'handler.Recipe.FindOne': %v", err)
+			return
+		}
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.FindOne': %v", err)
 		return
 	}
 
@@ -68,13 +69,13 @@ func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
 	var req reqRecipe
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.InsertOne': %v", err)
 		return
 	}
 
 	if err := h.v.Struct(req); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.InsertOne': %v", err)
 		return
 	}
 
@@ -82,7 +83,7 @@ func (h *Recipe) InsertOne(w http.ResponseWriter, r *http.Request) {
 	insertedRecipe, err := h.u.InsertOne(ctx, recipe)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.InsertOne': %v", err)
 		return
 	}
 
@@ -99,13 +100,13 @@ func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
 	var req reqRecipe
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.UpdateOne': %v", err)
 		return
 	}
 
 	if err := h.v.Struct(req); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusBadRequest)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.UpdateOne': %v", err)
 		return
 	}
 
@@ -113,7 +114,7 @@ func (h *Recipe) UpdateOne(w http.ResponseWriter, r *http.Request) {
 	updatedRecipe, err := h.u.UpdateOne(ctx, id, recipe)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.UpdateOne': %v", err)
 		return
 	}
 
@@ -128,7 +129,7 @@ func (h *Recipe) DeleteOne(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.u.DeleteOne(ctx, id); err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
-		log.Println(err)
+		log.Printf("fail 'handler.Recipe.DeleteOne': %v", err)
 		return
 	}
 

@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"doodemo-cook/api/entity"
-	"errors"
 	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -46,7 +45,7 @@ func (r *Recipe) buildFilter(q string, tags []string) (bson.M, error) {
 		for _, v := range tags {
 			oid, err := primitive.ObjectIDFromHex(v)
 			if err != nil {
-				return bson.M{}, err
+				return bson.M{}, fmt.Errorf("fail 'repository.Recipe.buildFilter': %w", err)
 			}
 			t = append(t, oid)
 		}
@@ -61,12 +60,12 @@ func (r *Recipe) Count(ctx context.Context, q string, tags []string) (int, error
 
 	filter, err := r.buildFilter(q, tags)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("fail 'repository.Recipe.Count': %w", err)
 	}
 
 	cnt, err := coll.CountDocuments(ctx, filter)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("fail 'repository.Recipe.Count': %w", err)
 	}
 
 	return int(cnt), nil
@@ -77,7 +76,7 @@ func (r *Recipe) Find(ctx context.Context, q string, tags []string, limit int, s
 
 	filter, err := r.buildFilter(q, tags)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail 'repository.Recipe.Find': %w", err)
 	}
 
 	pipeline := mongo.Pipeline{}
@@ -95,7 +94,7 @@ func (r *Recipe) Find(ctx context.Context, q string, tags []string, limit int, s
 	recipes := entity.Recipes{}
 	cur, err := coll.Aggregate(ctx, pipeline)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fail 'repository.Recipe.Find': %w", err)
 	}
 
 	for cur.Next(ctx) {
@@ -112,7 +111,7 @@ func (r *Recipe) FindOne(ctx context.Context, id string) (entity.Recipe, error) 
 
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return entity.Recipe{}, err
+		return entity.Recipe{}, fmt.Errorf("fail 'repository.Recipe.FindOne': %w", err)
 	}
 
 	pipline := mongo.Pipeline{
@@ -122,14 +121,14 @@ func (r *Recipe) FindOne(ctx context.Context, id string) (entity.Recipe, error) 
 
 	cur, err := coll.Aggregate(ctx, pipline)
 	if err != nil {
-		return entity.Recipe{}, err
+		return entity.Recipe{}, fmt.Errorf("fail 'repository.Recipe.FindOne': %w", err)
 	}
 
 	var b bRecipe
 	if cur.Next(ctx) {
 		cur.Decode(&b)
 	} else {
-		return entity.Recipe{}, fmt.Errorf("not found %s", id)
+		return entity.Recipe{}, fmt.Errorf("fail 'repository.Recipe.FindOne': %w", mongo.ErrNoDocuments)
 	}
 
 	return b.toRecipe(), nil
@@ -171,12 +170,12 @@ func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, e
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("fail 'repository.Recipe.InsertOne': %w", err)
 	}
 
 	oid, ok := id.(primitive.ObjectID)
 	if !ok {
-		return "", errors.New("read inserted ID error")
+		return "", fmt.Errorf("fail 'repository.Recipe.InsertOne': %w", err)
 	}
 
 	return oid.Hex(), nil
@@ -185,7 +184,7 @@ func (r *Recipe) InsertOne(ctx context.Context, recipe entity.Recipe) (string, e
 func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe) error {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("fail 'repository.Recipe.UpdateOne': %w", err)
 	}
 
 	err = r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
@@ -253,7 +252,7 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("err repository.Recipe.UpdateOne: %v", err)
+		return fmt.Errorf("fail 'repository.Recipe.UpdateOne': %w", err)
 	}
 
 	return nil
@@ -262,7 +261,7 @@ func (r *Recipe) UpdateOne(ctx context.Context, id string, recipe entity.Recipe)
 func (r *Recipe) DeleteOne(ctx context.Context, id string) error {
 	oid, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return err
+		return fmt.Errorf("fail 'repository.Recipe.DeleteOne': %w", err)
 	}
 
 	err = r.c.UseSession(ctx, func(sc mongo.SessionContext) error {
@@ -294,7 +293,7 @@ func (r *Recipe) DeleteOne(ctx context.Context, id string) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("fail 'repository.Recipe.DeleteOne': %w", err)
 	}
 
 	return nil
