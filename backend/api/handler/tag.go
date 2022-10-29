@@ -20,7 +20,7 @@ func (h *Tag) Find(w http.ResponseWriter, r *http.Request) {
 	tags, cnt, err := h.u.Find(ctx)
 	if err != nil {
 		response.FromStatusCode(ctx, w, http.StatusInternalServerError)
-		log.Println(err)
+		log.Printf("fail 'handler.Tag.Find': %v", err)
 		return
 	}
 

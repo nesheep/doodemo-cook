@@ -2,6 +2,7 @@ package repository
 
 import (
 	"doodemo-cook/api/entity"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
@@ -17,7 +18,7 @@ func bInputRecipeFromRecipe(recipe entity.Recipe) (bInputRecipe, error) {
 	for _, v := range recipe.Tags {
 		oid, err := primitive.ObjectIDFromHex(v.ID)
 		if err != nil {
-			return bInputRecipe{}, err
+			return bInputRecipe{}, fmt.Errorf("fail 'repository.bInputRecipeFromRecipe': %w", err)
 		}
 		tags = append(tags, oid)
 	}
